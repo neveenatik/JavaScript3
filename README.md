@@ -4,7 +4,7 @@
 # Homework week2
 - https://neveenatik.github.io/JavaScript3/Week2
 
-# Homework week2
+# Homework week3
 - https://neveenatik.github.io/JavaScript3/Week3
 
 > Please help us improve and share your feedback! If you find better tutorials
