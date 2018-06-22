@@ -7,6 +7,21 @@
   let userUrl = `${mainUrl}users/${user}`;
   let repositoryUrl = `${userUrl}/repos?per_page=100`;
   const root = document.getElementById('root');
+  const headerWrapper = createAndAppend('div', root, { class: 'header-wrapper', role: 'navigation' });
+  const header = createAndAppend('h2', headerWrapper, { html: `Repositories `, id: 'repositories' });
+  const inputRepository = createAndAppend('input', header, { type: 'text', id: 'input-user', value: `${user}`, role: 'enter new username' });
+  const inputButton = createAndAppend('button', header, { type: 'submit', html: 'Edit GitHub name and click', for: 'input-user' });
+  const headerImg = createAndAppend('img', header, { class: 'header-img', src: 'assets/doubleblink.webp', alt: 'blinking octodex' });
+  inputButton.addEventListener('click', () => {
+    user = inputRepository.value;
+    headerImg.classList.remove('onclick-image');
+    //triggering reflow calculating style
+    void headerImg.offsetWidth;
+    headerImg.classList.add('onclick-image')
+    repositoryUrl = `${mainUrl}users/${user}/repos?per_page=100`;
+    removeChildElements('wrapper');
+    main();
+  });
   const wrapper = createAndAppend('div', root, { id: 'wrapper' });
 
   async function main() {
@@ -19,7 +34,7 @@
       renderContributionsInfo(contributionData);
     }
     catch (error) {
-      createAndAppend('div', wrapper, { html: error.message, class: 'alert-error' });
+      createAndAppend('div', wrapper, { html: error.message, class: 'alert-error', role: 'alert' });
     }
   }
 
@@ -35,70 +50,69 @@
   }
 
   function createRepositoryList(response) {
-    const header = createAndAppend('h2', wrapper, { html: `Repositories `, id: 'repositories' });
-    const inputRepository = createAndAppend('input', header, { type: 'text', id: 'input-user', value: `${user}` });
-    const dropList = createAndAppend('select', header, { id: 'repository-list' });
+    const dropList = createAndAppend('select', wrapper, { id: 'repository-list' });
     Object.values(response).forEach(repo => {
       createAndAppend('option', dropList, { html: repo.name, });
     });
     const selected = document.getElementById('repository-list');
     createAndAppend('div', wrapper, { id: 'container' });
-    const inputButton = createAndAppend('button', header, { type: 'submit', html: 'submit' });
-    inputButton.addEventListener('click', () => {
-      user = inputRepository.value;
-      repositoryUrl = `${mainUrl}users/${user}/repos?per_page=100`;
-      removeChildElements('wrapper');
-      main();
-    });
-    selected.addEventListener('change', () => {
+    selected.addEventListener('change', async () => {
       try {
         removeChildElements('container');
-        fetchJSON(`${mainUrl}repos/${user}/${selected.value}`)
-          .then(renderRepositoryInfo)
-          .then(contributionData => fetchJSON(contributionData['contributors_url']))
-          .then(renderContributionsInfo);
+        let chooseAndFetch = await fetchJSON(`${mainUrl}repos/${user}/${selected.value}`);
+        let renderRepositories = renderRepositoryInfo(chooseAndFetch);
+        let contributionData = await fetchJSON(renderRepositories['contributors_url']);
+        renderContributionsInfo(contributionData);
       }
       catch (error) {
         removeChildElements('container');
-        createAndAppend('div', wrapper, { html: error.message, class: 'alert-error' });
+        createAndAppend('div', wrapper, { html: `Error in rendering repositories on change ${error.message}`, class: 'alert-error', role: 'alert' });
       }
     });
     return selected.value;
   }
 
   function renderRepositoryInfo(repoData) {
-    const container = document.getElementById('container');
-    const section = createAndAppend('section', container, { class: 'repository-info' });
-    createAndAppend('div', section, { id: 'repository' });
-    renderTable(section,
-      {
-        repository: repoData['name'],
-        description: repoData['description'],
-        forks: repoData['forks'],
-        'last update': ((repoData['updated_at']).substring(0, 10) + ' at ' + (repoData['updated_at']).substring(11, 19)),
-      },
-      repoData['html_url'],
-    );
+    try {
+      const container = document.getElementById('container');
+      const section = createAndAppend('section', container, { class: 'repository-info' });
+      createAndAppend('div', section, { id: 'repository' });
+      renderTable(section,
+        {
+          repository: repoData['name'],
+          description: repoData['description'],
+          forks: repoData['forks'],
+          'last update': ((repoData['updated_at']).substring(0, 10) + ' at ' + (repoData['updated_at']).substring(11, 19)),
+        },
+        repoData['html_url'],
+      );
+    } catch {
+      createAndAppend('div', wrapper, { html: `Error in rendering repository information ${error.message}`, class: 'alert-error', role: 'alert' });
+    }
     return repoData;
   }
 
   function renderContributionsInfo(contData) {
-    const container = document.getElementById('container');
-    const section = createAndAppend('section', container, { class: 'contributions-info' });
-    createAndAppend('h3', section, { html: 'Contributions' });
-    contData.forEach(cont => {
-      const contributorContainer = createAndAppend('div', section, { class: 'contributor' });
-      createAndAppend('img', contributorContainer, { src: cont['avatar_url'], class: 'avatar-img' });
-      const linkUser = createAndAppend('a', contributorContainer, { href: cont['html_url'], target: '_blank', html: cont['login'], class: 'name' });
-      createAndAppend('p', contributorContainer, { html: cont['contributions'], class: 'contributions' });
-      linkUser.addEventListener('click', () => {
-        console.log(linkUser);
-        user = linkUser.innerText;
-        repositoryUrl = `${mainUrl}users/${user}/repos?per_page=100`;
-        removeChildElements('wrapper');
-        main();
+    try {
+      const container = document.getElementById('container');
+      const section = createAndAppend('section', container, { class: 'contributions-info' });
+      createAndAppend('h3', section, { html: 'Contributions' });
+      contData.forEach(cont => {
+        const contributorContainer = createAndAppend('div', section, { class: 'contributor', id: cont['login'] });
+        createAndAppend('img', contributorContainer, { src: cont['avatar_url'], class: 'avatar-img', alt: 'user avatar', for: cont['login'] });
+        const linkUser = createAndAppend('a', contributorContainer, { href: cont['html_url'], target: '_blank', html: cont['login'], class: 'name', for: cont['login'] });
+        createAndAppend('p', contributorContainer, { html: cont['contributions'], class: 'contributions', for: cont['login'] });
+        linkUser.addEventListener('click', () => {
+          user = linkUser.innerText;
+          inputRepository.value = user;
+          repositoryUrl = `${mainUrl}users/${user}/repos?per_page=100`;
+          removeChildElements('wrapper');
+          main();
+        });
       });
-    });
+    } catch {
+      createAndAppend('div', wrapper, { html: `Error in rendering contributions information ${error.message}`, class: 'alert-error', role: 'alert' });
+    }
   }
 
   function createAndAppend(name, parent, options = {}) {
